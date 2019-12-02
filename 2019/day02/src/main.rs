@@ -12,7 +12,7 @@ fn main() {
     run_program_verbs(input.to_string(), 1, 4);
     run_program_verbs(input.to_string(), 1, 5);
     run_program_verbs(input.to_string(), 1, 6);
-    
+
     run_program_verbs(input.to_string(), 2, 1);
     run_program_verbs(input.to_string(), 2, 2);
     run_program_verbs(input.to_string(), 2, 3);
@@ -40,7 +40,10 @@ fn file_to_vec(filename: String) -> io::Result<Vec<String>> {
 
 fn run_program_simple(input: String) -> String {
     println!("input: {}", input);
-    let mut program: Vec<i32> = input.split(",").map(|x| x.parse::<i32>().unwrap()).collect();
+    let mut program: Vec<i32> = input
+        .split(",")
+        .map(|x| x.parse::<i32>().unwrap())
+        .collect();
     program = run_program(program);
     let stringified: Vec<String> = program.into_iter().map(|i| i.to_string()).collect();
     let result = stringified.join(",");
@@ -49,12 +52,23 @@ fn run_program_simple(input: String) -> String {
 }
 
 fn run_program_verbs(input: String, noun: i32, verb: i32, expected: i32) {
-    let mut program: Vec<i32> = input.split(",").map(|x| x.parse::<i32>().unwrap()).collect();
+    let mut program: Vec<i32> = input
+        .split(",")
+        .map(|x| x.parse::<i32>().unwrap())
+        .collect();
     program[1] = noun;
     program[2] = verb;
     program = run_program(program);
     let result = program[0];
-    println!("{}, {} -> {} (matches {}? {}, difference is {})", noun, verb, result, expected, result == expected, (expected - result));
+    println!(
+        "{}, {} -> {} (matches {}? {}, difference is {})",
+        noun,
+        verb,
+        result,
+        expected,
+        result == expected,
+        (expected - result)
+    );
 
     if result == expected {
         let answer = 100 * noun + verb;
@@ -67,15 +81,15 @@ fn run_program(mut program: Vec<i32>) -> Vec<i32> {
 
     loop {
         let opcode: i32 = program[index];
-        
+
         if opcode == 99 {
             //println!("opcode 99! quit!");
             return program;
         }
 
-        let pos1: usize = program[index+1] as usize;
-        let pos2: usize = program[index+2] as usize;
-        let pos3: usize = program[index+3] as usize;
+        let pos1: usize = program[index + 1] as usize;
+        let pos2: usize = program[index + 2] as usize;
+        let pos3: usize = program[index + 3] as usize;
         //println!("opcode {} {} {} {}", opcode, pos1, pos2, pos3);
 
         if opcode == 1 {
@@ -103,9 +117,21 @@ mod tests {
     use super::*;
     #[test]
     fn run_program_works() {
-        assert_eq!("2,0,0,0,99".to_string(), run_program_simple("1,0,0,0,99".to_string()));
-        assert_eq!("2,3,0,6,99".to_string(), run_program_simple("2,3,0,3,99".to_string()));
-        assert_eq!("2,4,4,5,99,9801".to_string(), run_program_simple("2,4,4,5,99,0".to_string()));
-        assert_eq!("30,1,1,4,2,5,6,0,99".to_string(), run_program_simple("1,1,1,4,99,5,6,0,99".to_string()));
+        assert_eq!(
+            "2,0,0,0,99".to_string(),
+            run_program_simple("1,0,0,0,99".to_string())
+        );
+        assert_eq!(
+            "2,3,0,6,99".to_string(),
+            run_program_simple("2,3,0,3,99".to_string())
+        );
+        assert_eq!(
+            "2,4,4,5,99,9801".to_string(),
+            run_program_simple("2,4,4,5,99,0".to_string())
+        );
+        assert_eq!(
+            "30,1,1,4,2,5,6,0,99".to_string(),
+            run_program_simple("1,1,1,4,99,5,6,0,99".to_string())
+        );
     }
 }

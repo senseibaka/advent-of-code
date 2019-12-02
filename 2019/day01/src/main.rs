@@ -1,14 +1,22 @@
-use std::io::BufReader;
-use std::io::BufRead;
-use std::io;
 use std::fs;
+use std::io;
+use std::io::BufRead;
+use std::io::BufReader;
 use std::iter::Iterator;
 
 fn main() {
     let lines = file_to_vec("input.txt".to_string()).unwrap();
-    let result_part1 = lines.iter().map(|x| x.parse::<i32>().unwrap()).map(fuel_cost).fold(0, |acc, x| acc + x);
+    let result_part1 = lines
+        .iter()
+        .map(|x| x.parse::<i32>().unwrap())
+        .map(fuel_cost)
+        .fold(0, |acc, x| acc + x);
     println!("part 1 answer: {}", result_part1);
-    let result_part2 = lines.iter().map(|x| x.parse::<i32>().unwrap()).map(recursive_fuel_cost).fold(0, |acc, x| acc + x);
+    let result_part2 = lines
+        .iter()
+        .map(|x| x.parse::<i32>().unwrap())
+        .map(recursive_fuel_cost)
+        .fold(0, |acc, x| acc + x);
     println!("part 2 answer: {}", result_part2);
 }
 
@@ -23,8 +31,8 @@ fn fuel_cost(mass: i32) -> i32 {
 
     return match cost {
         c if c <= 0 => 0,
-        _ => cost
-    }
+        _ => cost,
+    };
 }
 
 fn recursive_fuel_cost(mass: i32) -> i32 {
@@ -32,8 +40,8 @@ fn recursive_fuel_cost(mass: i32) -> i32 {
 
     return match cost {
         c if c <= 0 => 0,
-        _ => cost + recursive_fuel_cost(cost)
-    }
+        _ => cost + recursive_fuel_cost(cost),
+    };
 }
 
 #[cfg(test)]
