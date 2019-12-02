@@ -6,23 +6,8 @@ use std::iter::Iterator;
 
 fn main() {
     let input = first_line(file_to_vec("input.txt".to_string()).unwrap());
-    /* run_program_verbs(input.to_string(), 1, 1);
-    run_program_verbs(input.to_string(), 1, 2);
-    run_program_verbs(input.to_string(), 1, 3);
-    run_program_verbs(input.to_string(), 1, 4);
-    run_program_verbs(input.to_string(), 1, 5);
-    run_program_verbs(input.to_string(), 1, 6);
-
-    run_program_verbs(input.to_string(), 2, 1);
-    run_program_verbs(input.to_string(), 2, 2);
-    run_program_verbs(input.to_string(), 2, 3);
-    run_program_verbs(input.to_string(), 2, 4);
-    run_program_verbs(input.to_string(), 2, 5);
-    run_program_verbs(input.to_string(), 2, 6); */
+    run_program_verbs(input.to_string(), 12, 2);
     run_program_verbs(input.to_string(), 45, 59, 19690720);
-    //run_program_verbs(input.to_string(), 12, 2);
-    //run_program_verbs(input.to_string(), 13, 2);
-    //run_program_verbs(input.to_string(), 20, 1);
 }
 
 fn first_line(lines: Vec<String>) -> String {
