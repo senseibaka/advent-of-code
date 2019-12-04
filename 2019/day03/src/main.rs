@@ -13,11 +13,6 @@ fn main() {
     let points2 = path_to_points((&lines[1]).to_string());
     println!("part1 answer: {}", solution_1(&points1, &points2));
     println!("part2 answer: {}", solution_2(&points1, &points2));
-    /* let distance = points1.intersection(&points2)
-        .map(|p| p.x.abs() + p.y.abs())
-        .filter(|d| *d != 0)
-        .fold(std::i32::MAX, |acc, d| if acc > d {d} else {acc});
-    println!("{}", distance); */
 }
 
 fn solution_1(points1: &HashMap<rusttype::Point<i32>, i32>, points2: &HashMap<rusttype::Point<i32>, i32>) -> i32 {
@@ -36,22 +31,6 @@ fn solution_2(points1: &HashMap<rusttype::Point<i32>, i32>, points2: &HashMap<ru
         .filter(|&(k, v)| points2.contains_key(&*k)) 
         .map(|(k, v)| *v + points2.get(k).unwrap())
         .fold(std::i32::MAX, |acc, d| if acc > d {d} else {acc});
-    /* for v in points1.iter()
-        .filter(|&(k, v)| *v != 0)
-        .filter(|&(k, v)| points2.contains_key(&*k)) 
-        .map(|(k, v)| *v + points2.get(k).unwrap())
-        {
-        println!("{}", v);
-        //println!("({}, {}) {} steps", k.x, k.y, v);
-    }
-    return 0; */
-    /* for (k, v) in points1 {
-        if points2.contains_key(k) {
-            let v2 = points2.get(k).unwrap();
-            println!("({}, {}) {} + {} = {}", k.x, k.y, v, v2, v+v2);
-        }
-    }
-    return 0; */
 }
 
 fn file_to_vec(filename: String) -> io::Result<Vec<String>> {

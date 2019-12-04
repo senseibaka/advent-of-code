@@ -6,7 +6,7 @@ use std::iter::Iterator;
 
 fn main() {
     let input = first_line(file_to_vec("input.txt".to_string()).unwrap());
-    run_program_verbs(input.to_string(), 12, 2);
+    run_program_verbs(input.to_string(), 12, 2, 0);
     run_program_verbs(input.to_string(), 45, 59, 19690720);
 }
 
