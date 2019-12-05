@@ -40,12 +40,15 @@ fn vec_to_comma_separated_ints(vec: Vec<i32>) -> String {
 fn run_emulator(program_spec: String, input_spec: String, debug: bool) -> (String, String) {
     let mut emulator = Emulator::new(
         comma_separated_ints_to_vec(program_spec),
-        comma_separated_ints_to_vec(input_spec), debug);
+        comma_separated_ints_to_vec(input_spec),
+        debug,
+    );
     emulator.run_program();
-    
+
     return (
         vec_to_comma_separated_ints(emulator.program),
-        vec_to_comma_separated_ints(emulator.outputs));
+        vec_to_comma_separated_ints(emulator.outputs),
+    );
 }
 
 struct Emulator {
@@ -53,7 +56,7 @@ struct Emulator {
     debug: bool,
     program: Vec<i32>,
     inputs: Vec<i32>,
-    outputs: Vec<i32>
+    outputs: Vec<i32>,
 }
 
 /*
@@ -87,7 +90,7 @@ impl Emulator {
             debug,
             program,
             inputs,
-            outputs: vec![]
+            outputs: vec![],
         }
     }
 
@@ -97,7 +100,7 @@ impl Emulator {
         }
     }
 
-    fn get_opcode(&self) -> i32{
+    fn get_opcode(&self) -> i32 {
         get_opcode(self.program[self.pc])
     }
 
@@ -108,7 +111,7 @@ impl Emulator {
     fn parameter(&self, index: usize) -> i32 {
         match self.is_immediate_parameter(index) {
             true => self.get_immediate(index),
-            false => self.get_positional(index)
+            false => self.get_positional(index),
         }
     }
 
@@ -137,7 +140,7 @@ impl Emulator {
                 7 => self.less_than(),
                 8 => self.equals(),
                 99 => break, //HALT!
-                _ => panic!("UNEXPECTED OPCODE '{}'", opcode)
+                _ => panic!("UNEXPECTED OPCODE '{}'", opcode),
             }
         }
     }
@@ -203,7 +206,10 @@ impl Emulator {
         let val1 = self.parameter(1);
         let val2 = self.parameter(2);
         let dest = self.program[self.pc + 3] as usize;
-        self.print_debug(format!("{} < {} ? 1 -> {} : 0 -> {}", val1, val2, dest, dest));
+        self.print_debug(format!(
+            "{} < {} ? 1 -> {} : 0 -> {}",
+            val1, val2, dest, dest
+        ));
         if val1 < val2 {
             self.program[dest] = 1;
         } else {
@@ -216,7 +222,10 @@ impl Emulator {
         let val1 = self.parameter(1);
         let val2 = self.parameter(2);
         let dest = self.program[self.pc + 3] as usize;
-        self.print_debug(format!("{} == {} ? 1 -> {} : 0 -> {}", val1, val2, dest, dest));
+        self.print_debug(format!(
+            "{} == {} ? 1 -> {} : 0 -> {}",
+            val1, val2, dest, dest
+        ));
         if val1 == val2 {
             self.program[dest] = 1;
         } else {
@@ -243,7 +252,10 @@ mod tests {
     }
     #[test]
     fn run_program_works_4() {
-        run_program_case_no_io("1,1,1,4,99,5,6,0,99".to_string(), "30,1,1,4,2,5,6,0,99".to_string());
+        run_program_case_no_io(
+            "1,1,1,4,99,5,6,0,99".to_string(),
+            "30,1,1,4,2,5,6,0,99".to_string(),
+        );
     }
     #[test]
     fn run_program_works_5() {
@@ -251,15 +263,30 @@ mod tests {
     }
 
     #[test]
-    fn run_program_with_io_works(){ 
-        run_program_case("3,0,4,0,99".to_string(), "1".to_string(), "1,0,4,0,99".to_string(), "1".to_string())
+    fn run_program_with_io_works() {
+        run_program_case(
+            "3,0,4,0,99".to_string(),
+            "1".to_string(),
+            "1,0,4,0,99".to_string(),
+            "1".to_string(),
+        )
     }
 
     fn run_program_case_no_io(program_spec: String, expected_program: String) {
-        run_program_case(program_spec, "".to_string(), expected_program, "".to_string());
+        run_program_case(
+            program_spec,
+            "".to_string(),
+            expected_program,
+            "".to_string(),
+        );
     }
 
-    fn run_program_case(program_spec: String, input_spec: String, expected_program: String, expected_output: String) {
+    fn run_program_case(
+        program_spec: String,
+        input_spec: String,
+        expected_program: String,
+        expected_output: String,
+    ) {
         let (prog, output) = run_emulator(program_spec, input_spec, true);
         assert_eq!(expected_program, prog);
         assert_eq!(expected_output, output);
