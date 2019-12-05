@@ -6,9 +6,13 @@ use std::iter::Iterator;
 
 fn main() {
     let program_spec = first_line(file_to_vec("input.txt".to_string()).unwrap());
-    let (result, output) = run_program_simple(program_spec.to_string(), "1".to_string());
+    /* let (result, output) = run_program_simple(program_spec.to_string(), "1".to_string());
     println!("PART 1 OUTPUT: {}", output);
     let (result, output) = run_program_simple(program_spec.to_string(), "5".to_string());
+    println!("PART 2 OUTPUT: {}", output); */
+    let (result, output) = run_program_new(program_spec.to_string(), "1".to_string());
+    println!("PART 1 OUTPUT: {}", output);
+    let (result, output) = run_program_new(program_spec.to_string(), "5".to_string());
     println!("PART 2 OUTPUT: {}", output);
 }
 
@@ -51,6 +55,145 @@ fn run_program_simple(program_spec: String, input_spec: String) -> (String, Stri
     //println!("ret1 {}", ret1);
     //println!("ret2 {}", ret2);
     return (ret1, ret2);
+}
+
+fn run_program_new(program_spec: String, input_spec: String) -> (String, String) {
+    let mut program_in = comma_separated_ints_to_vec(program_spec);
+    let mut inputs = comma_separated_ints_to_vec(input_spec);
+
+    let mut emulator = Emulator::new(program_in, inputs, true);
+    emulator.run_program();
+    
+    let ret1 = vec_to_comma_separated_ints(emulator.program);
+    let ret2 = vec_to_comma_separated_ints(emulator.outputs);
+    return (ret1, ret2);
+}
+
+struct Emulator {
+    pc: usize,
+    debug: bool,
+    program: Vec<i32>,
+    inputs: Vec<i32>,
+    outputs: Vec<i32>
+}
+
+impl Emulator {
+    fn new(program: Vec<i32>, inputs: Vec<i32>, debug: bool) -> Emulator {
+        Emulator {
+            pc: 0,
+            debug,
+            program,
+            inputs,
+            outputs: vec![]
+        }
+    }
+
+    fn print_debug(&self, statement: String) {
+        if self.debug {
+            println!("{}", statement);
+        }
+    }
+
+    /*
+        ABCDE
+        DE = opcode
+        C = p1 mode
+        B = p2 mode
+        A = p3 mode
+        Parameters that an instruction writes to will never be in immediate mode.
+    */
+    fn get_opcode(&self) -> i32{
+        self.program[self.pc] % 100
+    }
+
+    fn is_immediate_parameter(&self, index: usize) -> bool {
+        let instruction = self.program[self.pc];
+        match index {
+            1 => ((instruction / 100) % 10) == 1,
+            2 => ((instruction / 1000) % 10) == 1,
+            //unlikely this'll get hit, since
+            //currently all the 3-parameter opcodes write to the 3rd parameter
+            3 => ((instruction / 10000) % 10) == 1,
+            _ => panic!("UNEXPECTED PARAMETER '{}'", index),
+        }
+    }
+
+    fn parameter(&self, index: usize) -> i32 {
+        match self.is_immediate_parameter(index) {
+            true => self.get_immediate(index),
+            false => self.get_positional(index)
+        }
+    }
+
+    fn get_immediate(&self, index: usize) -> i32 {
+        self.program[self.pc + index]
+    }
+
+    fn get_positional(&self, index: usize) -> i32 {
+        let x = self.get_immediate(index) as usize;
+        self.program[self.pc + x]
+    }
+
+    fn set_positional(&mut self, index: usize, value: i32) {
+        let x = self.get_immediate(index) as usize;
+        self.program[self.pc + x] = value;
+    }
+
+    fn run_program(&mut self) {
+        let mut input_index: usize = 0;
+        loop {
+            let opcode = self.get_opcode();
+            match opcode {
+                1 => self.add(),
+                2 => self.multiply(),
+                3 => self.input(),
+                4 => self.output(),
+                5 => self.jump_if_true(),
+                6 => self.jump_if_false(),
+                7 => self.less_than(),
+                8 => self.equals(),
+                99 => break, //HALT!
+                _ => panic!("UNEXPECTED OPCODE '{}'", opcode)
+            }
+        }
+    }
+
+    fn add(&mut self) {
+        let val1 = self.parameter(1);
+        let val2 = self.parameter(2);
+        let res = val1 + val2;
+        self.print_debug(format!("{} + {} = {}", val1, val2, res));
+        self.set_positional(3, res);
+        self.pc += 4;
+    }
+
+    fn multiply(&mut self) {
+        self.pc += 4;
+    }
+
+    fn input(&mut self) {
+        self.pc += 2;
+    }
+
+    fn output(&mut self) {
+        self.pc += 2;
+    }
+
+    fn jump_if_true(&mut self) {
+        self.pc += 3;
+    }
+
+    fn jump_if_false(&mut self) {
+        self.pc += 3;
+    }
+
+    fn less_than(&mut self) {
+        self.pc += 4;
+    }
+
+    fn equals(&mut self) {
+        self.pc += 4;
+    }
 }
 
 fn decode(instruction: i32) -> (i32, bool, bool, bool) {
@@ -207,7 +350,7 @@ mod tests {
     }
 
     fn run_program_case(program_spec: String, input_spec: String, expected_program: String, expected_output: String) {
-        let (prog, output) = run_program_simple(program_spec, input_spec);
+        let (prog, output) = run_program_new(program_spec, input_spec);
         assert_eq!(expected_program, prog);
         assert_eq!(expected_output, output);
     }
