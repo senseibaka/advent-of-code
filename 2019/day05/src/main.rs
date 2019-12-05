@@ -6,9 +6,10 @@ use std::iter::Iterator;
 
 fn main() {
     let program_spec = first_line(file_to_vec("input.txt".to_string()).unwrap());
-    let (result, output) = run_program_simple(program_spec, "1".to_string());
+    let (result, output) = run_program_simple(program_spec.to_string(), "1".to_string());
     println!("PART 1 OUTPUT: {}", output);
-    //println!("RESULT: {}", result);
+    let (result, output) = run_program_simple(program_spec.to_string(), "5".to_string());
+    println!("PART 2 OUTPUT: {}", output);
 }
 
 fn first_line(lines: Vec<String>) -> String {
@@ -77,7 +78,7 @@ fn run_program(mut program: Vec<i32>, inputs: Vec<i32>) -> (Vec<i32>, Vec<i32>) 
     loop {
         let (opcode, is_immediate_1, is_immediate_2, is_immediate_3) = decode(program[pc]);
 
-        //println!("opcode {}", opcode);
+        //println!("opcode {} ({}, {}, {})", opcode, is_immediate_1, is_immediate_2, is_immediate_3);
 
         if opcode == 99 {
             return (program, outputs);
@@ -127,6 +128,56 @@ fn run_program(mut program: Vec<i32>, inputs: Vec<i32>) -> (Vec<i32>, Vec<i32>) 
                 outputs.push(val);
                 pc += 2;
             },
+            5 => {
+                let val1: i32 = if is_immediate_1 { program[pc+1] } else { program[(program[pc+1] as usize)]};
+                let val2: i32 = if is_immediate_2 { program[pc+2] } else { program[(program[pc+2] as usize)]};
+                if val1 != 0 {
+                    //println!("{} <> 0, jump to {}", val1, val2);
+                    pc = val2 as usize;
+                } else {
+                    pc += 3;
+                }
+            },
+            6 => {
+                let val1: i32 = if is_immediate_1 { program[pc+1] } else { program[(program[pc+1] as usize)]};
+                let val2: i32 = if is_immediate_2 { program[pc+2] } else { program[(program[pc+2] as usize)]};
+                if val1 == 0 {
+                    //println!("{} == 0, jump to {}", val1, val2);
+                    pc = val2 as usize;
+                } else {
+                    pc += 3;
+                }
+            },
+            7 => {
+                let val1: i32 = if is_immediate_1 { program[pc+1] } else { program[(program[pc+1] as usize)]};
+                let val2: i32 = if is_immediate_2 { program[pc+2] } else { program[(program[pc+2] as usize)]};
+                let pos3: usize = program[pc + 3] as usize;
+
+                if val1 < val2 {
+                    //println!("{} < {}, 1 -> {}", val1, val2, pos3);
+                    program[pos3] = 1;
+                } else {
+                    //println!("{} !< {}, 0 -> {}", val1, val2, pos3);
+                    program[pos3] = 0;
+                }
+
+                pc += 4;
+            },
+            8 => {
+                let val1: i32 = if is_immediate_1 { program[pc+1] } else { program[(program[pc+1] as usize)]};
+                let val2: i32 = if is_immediate_2 { program[pc+2] } else { program[(program[pc+2] as usize)]};
+                let pos3: usize = program[pc + 3] as usize;
+
+                if val1 == val2 {
+                    //println!("{} == {}, 1 -> {}", val1, val2, pos3);
+                    program[pos3] = 1;
+                } else {
+                    //println!("{} != {}, 0 -> {}", val1, val2, pos3);
+                    program[pos3] = 0;
+                }
+
+                pc += 4;
+            }
             _ => {
                 panic!("Encountered unexpected opcode {}", opcode);
             }
