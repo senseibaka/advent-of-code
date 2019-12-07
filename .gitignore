@@ -1,2 +1,4 @@
 target/
 **/*.rs.bk
+common/Cargo.lock
+intcode/Cargo.lock

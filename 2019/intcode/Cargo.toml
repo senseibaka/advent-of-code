@@ -1,9 +1,8 @@
 [package]
-name = "2019day02"
+name = "intcode"
 version = "0.1.0"
 authors = ["Nicholas Sizer <senseibaka@senseibaka.com>"]
 edition = "2018"
 
 [dependencies]
 common = { path = "../../common" }
-intcode = { path = "../intcode" }
