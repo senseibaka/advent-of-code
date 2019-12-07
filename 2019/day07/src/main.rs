@@ -1,40 +1,18 @@
 use common::*;
 use intcode::intcode::*;
+use itertools::Itertools;
 
 fn main() {
     let program_spec = first_line(file_to_vec("input.txt".to_string()).unwrap());
     let mut max_signal = std::i32::MIN;
     let mut max_combo = vec![0,0,0,0,0];
-    for a in 0..=4 {
-        for b in 0..=4 {
-            if b == a {
-                continue;
-            }
-
-            for c in 0..=4 {
-                if c == b || c == a {
-                    continue;
-                }
-
-                for d in 0..=4 {
-                    if d == c || d == b || d == a {
-                        continue;
-                    }
-
-                    for e in 0..=4 {
-                        if e == d || e == c || e == b || e == a {
-                            continue;
-                        }
-
-                        let signal = run_amp_sequence(&program_spec, &vec![a,b,c,d,e], false);
-                        if signal > max_signal {
-                            max_signal = signal;
-                            max_combo = vec![a,b,c,d,e];
-                            println!("New max found: {:?} -> {}", max_combo, &max_signal);
-                        }
-                    }
-                }
-            }
+    
+    for combo in (0..=4).permutations(5) {
+        let signal = run_amp_sequence(&program_spec, &combo, false);
+        if signal > max_signal {
+            max_signal = signal;
+            max_combo = combo;
+            println!("New max found: {:?} -> {}", max_combo, &max_signal);
         }
     }
     println!("PART 1 MAX: {:?} -> {}", max_combo, &max_signal)
