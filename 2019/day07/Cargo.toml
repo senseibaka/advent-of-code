@@ -1,8 +1,9 @@
 [package]
-name = "2019day06"
+name = "2019day07"
 version = "0.1.0"
 authors = ["Nicholas Sizer <senseibaka@senseibaka.com>"]
 edition = "2018"
 
 [dependencies]
-fast_paths = "0.1.1"
+common = { path = "../../common" }
+intcode = { path = "../intcode" }

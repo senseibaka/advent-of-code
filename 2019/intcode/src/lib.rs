@@ -1,8 +1,8 @@
 pub mod intcode {
     pub fn prepare_emulator(program_spec: String, input_spec: String, debug: bool) -> Emulator {
         Emulator::new(
-            common::comma_separated_ints_to_vec(program_spec),
-            common::comma_separated_ints_to_vec(input_spec),
+            common::comma_separated_ints_to_vec(&program_spec),
+            common::comma_separated_ints_to_vec(&input_spec),
             debug,
         )
     }
@@ -42,7 +42,7 @@ pub mod intcode {
         pc: usize,
         debug: bool,
         pub program: Vec<i32>,
-        pub inputs: Vec<i32>,
+        pub inputs: Vec<i32>, //note: treat this like a stack
         pub outputs: Vec<i32>,
     }
 
@@ -80,19 +80,21 @@ pub mod intcode {
 
         fn get_immediate(&self, index: usize) -> i32 {
             self.print_debug(format!("get_immediate {}", index));
+            
             self.program[self.pc + index]
         }
 
         fn get_positional(&self, index: usize) -> i32 {
             let x = self.get_immediate(index) as usize;
             self.print_debug(format!("get_positional {} -> {}", index, x));
+            
             self.program[x]
         }
 
         pub fn run_program(&mut self) {
             loop {
                 let opcode = self.get_opcode();
-                self.print_debug(format!("OPCODE {}", opcode));
+                //self.print_debug(format!("OPCODE {}", opcode));
                 match opcode {
                     1 => self.add(),
                     2 => self.multiply(),
@@ -113,7 +115,7 @@ pub mod intcode {
             let val2 = self.parameter(2);
             let dest = self.program[self.pc + 3] as usize;
             let res = val1 + val2;
-            self.print_debug(format!("{} + {} = {} -> {}", val1, val2, res, dest));
+            self.print_debug(format!("ADD {} + {} = {} -> {}", val1, val2, res, dest));
             self.program[dest] = res;
             self.pc += 4;
         }
@@ -123,22 +125,25 @@ pub mod intcode {
             let val2 = self.parameter(2);
             let dest = self.program[self.pc + 3] as usize;
             let res = val1 * val2;
-            self.print_debug(format!("{} * {} = {} -> {}", val1, val2, res, dest));
+            self.print_debug(format!("MUL {} * {} = {} -> {}", val1, val2, res, dest));
             self.program[dest] = res;
             self.pc += 4;
         }
 
         fn input(&mut self) {
-            let val: i32 = self.inputs.pop().unwrap();
+            if self.inputs.len() == 0 {
+                panic!("TRY TO READ INPUT BUT THERE IS NONE. Instruction {}", self.program[self.pc]);
+            }
+            let val: i32 = self.inputs.remove(0);
             let dest = self.program[self.pc + 1] as usize;
-            self.print_debug(format!("(in){} -> {}", val, dest));
+            self.print_debug(format!("INPUT {} -> {}", val, dest));
             self.program[dest] = val;
             self.pc += 2;
         }
 
         fn output(&mut self) {
             let val = self.parameter(1);
-            self.print_debug(format!("(out){}", val));
+            self.print_debug(format!("OUTPUT {}", val));
             self.outputs.push(val);
             self.pc += 2;
         }
@@ -146,7 +151,7 @@ pub mod intcode {
         fn jump_if_true(&mut self) {
             let val1 = self.parameter(1);
             let val2 = self.parameter(2);
-            self.print_debug(format!("{} != 0 ? jump to {}", val1, val2));
+            self.print_debug(format!("JIT {} != 0 ? jump to {}", val1, val2));
             if val1 != 0 {
                 self.pc = val2 as usize;
             } else {
@@ -157,7 +162,7 @@ pub mod intcode {
         fn jump_if_false(&mut self) {
             let val1 = self.parameter(1);
             let val2 = self.parameter(2);
-            self.print_debug(format!("{} == 0 ? jump to {}", val1, val2));
+            self.print_debug(format!("JIF {} == 0 ? jump to {}", val1, val2));
             if val1 == 0 {
                 self.pc = val2 as usize;
             } else {
@@ -170,7 +175,7 @@ pub mod intcode {
             let val2 = self.parameter(2);
             let dest = self.program[self.pc + 3] as usize;
             self.print_debug(format!(
-                "{} < {} ? 1 -> {} : 0 -> {}",
+                "LT {} < {} ? 1 -> {} : 0 -> {}",
                 val1, val2, dest, dest
             ));
             if val1 < val2 {
@@ -186,7 +191,7 @@ pub mod intcode {
             let val2 = self.parameter(2);
             let dest = self.program[self.pc + 3] as usize;
             self.print_debug(format!(
-                "{} == {} ? 1 -> {} : 0 -> {}",
+                "EQ {} == {} ? 1 -> {} : 0 -> {}",
                 val1, val2, dest, dest
             ));
             if val1 == val2 {

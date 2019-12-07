@@ -17,7 +17,7 @@ pub fn file_to_vec(filename: String) -> io::Result<Vec<String>> {
     Ok(file_reader.lines().filter_map(io::Result::ok).collect())
 }
 
-pub fn comma_separated_ints_to_vec(line: String) -> Vec<i32> {
+pub fn comma_separated_ints_to_vec(line: &String) -> Vec<i32> {
     line.split(",")
         .filter(|x| !x.is_empty())
         .map(|x| x.parse::<i32>().unwrap())
