@@ -1,6 +1,7 @@
 use common::*;
 use intcode::intcode::*;
 use itertools::Itertools;
+use std::sync::mpsc::*;
 
 fn main() {
     let program_spec = first_line(file_to_vec("input.txt".to_string()).unwrap());
@@ -12,7 +13,7 @@ fn main() {
         if signal > max_signal {
             max_signal = signal;
             max_combo = combo;
-            println!("New max found: {:?} -> {}", max_combo, &max_signal);
+            //println!("New max found: {:?} -> {}", max_combo, &max_signal);
         }
     }
     println!("PART 1 MAX: {:?} -> {}", max_combo, &max_signal)
@@ -33,17 +34,22 @@ fn run_amp_sequence(program_spec: &String, phases: &Vec<i32>, debug: bool) -> i3
 fn run_amp(program_spec: &String, phase: i32, signal: i32, debug: bool) -> i32 {
     //println!("### RUN AMP p:{}, s:{}", phase, signal);
 
+    let (input_send, input_recv) = channel();
+    let (output_send, output_recv) = channel();
+
     let mut emulator = Emulator::new(
         common::comma_separated_ints_to_vec(program_spec),
-        vec![],
+        input_recv,
+        output_send,
         debug,
     );
     
-    emulator.inputs.append(&mut vec![phase, signal]);
+    input_send.send(phase).unwrap();
+    input_send.send(signal).unwrap();
 
     emulator.run_program();
 
-    let result = emulator.outputs.pop().unwrap();
+    let result = output_recv.recv().unwrap();
 
     return result;
 }

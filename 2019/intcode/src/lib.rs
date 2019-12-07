@@ -1,19 +1,5 @@
 pub mod intcode {
-    pub fn prepare_emulator(program_spec: String, input_spec: String, debug: bool) -> Emulator {
-        Emulator::new(
-            common::comma_separated_ints_to_vec(&program_spec),
-            common::comma_separated_ints_to_vec(&input_spec),
-            debug,
-        )
-    }
-    
-    pub fn deconstruct_output(emulator: Emulator) -> (String, String) {
-        (
-            common::vec_to_comma_separated_ints(emulator.program),
-            common::vec_to_comma_separated_ints(emulator.outputs)
-        )
-    }
-
+    use std::sync::mpsc::*;
     /*
         ABCDE
         DE = opcode
@@ -42,18 +28,18 @@ pub mod intcode {
         pc: usize,
         debug: bool,
         pub program: Vec<i32>,
-        pub inputs: Vec<i32>, //note: treat this like a stack
-        pub outputs: Vec<i32>,
+        pub inputs: Receiver<i32>,
+        pub outputs: Sender<i32>,
     }
 
     impl Emulator {
-        pub fn new(program: Vec<i32>, inputs: Vec<i32>, debug: bool) -> Emulator {
+        pub fn new(program: Vec<i32>, inputs: Receiver<i32>, outputs: Sender<i32>, debug: bool) -> Emulator {
             Emulator {
                 pc: 0,
                 debug,
                 program,
                 inputs,
-                outputs: vec![],
+                outputs,
             }
         }
 
@@ -131,10 +117,7 @@ pub mod intcode {
         }
 
         fn input(&mut self) {
-            if self.inputs.len() == 0 {
-                panic!("TRY TO READ INPUT BUT THERE IS NONE. Instruction {}", self.program[self.pc]);
-            }
-            let val: i32 = self.inputs.remove(0);
+            let val = self.inputs.recv().unwrap();
             let dest = self.program[self.pc + 1] as usize;
             self.print_debug(format!("INPUT {} -> {}", val, dest));
             self.program[dest] = val;
@@ -144,7 +127,7 @@ pub mod intcode {
         fn output(&mut self) {
             let val = self.parameter(1);
             self.print_debug(format!("OUTPUT {}", val));
-            self.outputs.push(val);
+            self.outputs.send(val).unwrap();
             self.pc += 2;
         }
 
@@ -207,6 +190,7 @@ pub mod intcode {
 #[cfg(test)]
 mod tests {
     use crate::intcode::*;
+    use std::sync::mpsc::*;
 
     #[test]
     fn run_program_works_1() {
@@ -257,9 +241,36 @@ mod tests {
         expected_program: String,
         expected_output: String,
     ) {
-        let mut emulator = prepare_emulator(program_spec, input_spec, true);
+        let (input_send, input_recv) = channel();
+        let (output_send, output_recv) = channel();
+        //let mut emulator = prepare_emulator(program_spec, input_spec, true);
+        for i in common::comma_separated_ints_to_vec(&input_spec) {
+            input_send.send(i).unwrap();
+        }
+
+        let mut emulator = Emulator::new(
+            common::comma_separated_ints_to_vec(&program_spec),
+            input_recv,
+            output_send,
+            true
+        );
+        
         emulator.run_program();
-        let (prog, output) = deconstruct_output(emulator);
+        
+        //let (prog, output) = deconstruct_output(emulator);
+        let prog = common::vec_to_comma_separated_ints(emulator.program);
+        let mut outputs: Vec<i32> = vec![];
+
+        loop {
+            let val = output_recv.try_recv();
+            if val.is_err() {
+                break;
+            }
+            outputs.push(val.unwrap());
+        }
+
+        let output = common::vec_to_comma_separated_ints(outputs);
+        
         assert_eq!(expected_program, prog);
         assert_eq!(expected_output, output);
     }
