@@ -12,10 +12,57 @@ fn main() {
         if signal > max_signal {
             max_signal = signal;
             max_combo = combo;
-            println!("New max found: {:?} -> {}", max_combo, &max_signal);
+            //println!("New max found: {:?} -> {}", max_combo, &max_signal);
         }
     }
-    println!("PART 1 MAX: {:?} -> {}", max_combo, &max_signal)
+    println!("PART 1 MAX: {:?} -> {}", max_combo, &max_signal);
+
+    max_signal = std::i32::MIN;
+    for combo in (5..=9).permutations(5) {
+        let signal = run_amp_feedback_sequence(&program_spec, &combo, false);
+        if signal > max_signal {
+            max_signal = signal;
+            max_combo = combo;
+            //println!("New max found: {:?} -> {}", max_combo, &max_signal);
+        }
+    }
+    println!("PART 2 MAX: {:?} -> {}", max_combo, &max_signal);
+}
+
+fn run_amp_feedback_sequence(program_spec: &String, phases: &Vec<i32>, debug: bool) -> i32 {
+    //setup
+    let mut emulators: Vec<Emulator> = vec![];
+    let mut first = true;
+    for phase in phases {
+        let mut emulator = Emulator::new(
+            common::comma_separated_ints_to_vec(program_spec),
+            vec![*phase],
+            debug,
+        );
+        if first {
+            emulator.inputs.push(0); // seeding signal
+            first = false;
+        }
+        emulators.push(emulator);
+    }
+    
+    let mut current_emulator = 0;
+    loop {
+        match emulators[current_emulator].run_program() {
+            RunSignal::Halt => {
+                if current_emulator == emulators.len() - 1 {
+                    return emulators[current_emulator].outputs.pop().unwrap();
+                }
+            },
+            RunSignal::Output(value) => {
+                let next_emulator = ( current_emulator + 1) % 5;
+                emulators[next_emulator].inputs.push(value);
+            }
+            //RunSignal::NoInput =>
+            _ => continue // if input is requested, then we need to move on to the next emulator. eventually we'll loop around and output should feed to input, and it'll resolve
+        }
+        current_emulator = ( current_emulator + 1) % emulators.len();
+    }
 }
 
 fn run_amp_sequence(program_spec: &String, phases: &Vec<i32>, debug: bool) -> i32 {
@@ -41,8 +88,13 @@ fn run_amp(program_spec: &String, phase: i32, signal: i32, debug: bool) -> i32 {
     
     emulator.inputs.append(&mut vec![phase, signal]);
 
-    emulator.run_program();
-
+    loop {
+        match emulator.run_program() {
+            RunSignal::Halt => break,
+            _ => continue
+        }
+    }
+    
     let result = emulator.outputs.pop().unwrap();
 
     return result;

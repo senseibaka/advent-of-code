@@ -42,8 +42,16 @@ pub mod intcode {
         pc: usize,
         debug: bool,
         pub program: Vec<i32>,
-        pub inputs: Vec<i32>, //note: treat this like a stack
+        pub inputs: Vec<i32>,
         pub outputs: Vec<i32>,
+        is_halted: bool
+    }
+
+    #[derive(Debug)]
+    pub enum RunSignal {
+        Halt,
+        NoInput,
+        Output(i32)
     }
 
     impl Emulator {
@@ -54,6 +62,7 @@ pub mod intcode {
                 program,
                 inputs,
                 outputs: vec![],
+                is_halted: false
             }
         }
 
@@ -91,20 +100,34 @@ pub mod intcode {
             self.program[x]
         }
 
-        pub fn run_program(&mut self) {
+        pub fn run_program(&mut self) -> RunSignal {
+            if self.is_halted {
+                return RunSignal::Halt;
+            }
             loop {
                 let opcode = self.get_opcode();
                 //self.print_debug(format!("OPCODE {}", opcode));
                 match opcode {
                     1 => self.add(),
                     2 => self.multiply(),
-                    3 => self.input(),
-                    4 => self.output(),
+                    3 => {
+                        if !self.input() {
+                            return RunSignal::NoInput;
+                        }
+                    },
+                    4 => {
+                        self.output();
+                        let last_output = self.outputs[self.outputs.len()-1];
+                        return RunSignal::Output(last_output);
+                    },
                     5 => self.jump_if_true(),
                     6 => self.jump_if_false(),
                     7 => self.less_than(),
                     8 => self.equals(),
-                    99 => break, //HALT!
+                    99 => {
+                        self.is_halted = true;
+                        return RunSignal::Halt; //HALT!
+                    },
                     _ => panic!("UNEXPECTED OPCODE '{}'", opcode),
                 }
             }
@@ -130,15 +153,16 @@ pub mod intcode {
             self.pc += 4;
         }
 
-        fn input(&mut self) {
+        fn input(&mut self) -> bool {
             if self.inputs.len() == 0 {
-                panic!("TRY TO READ INPUT BUT THERE IS NONE. Instruction {}", self.program[self.pc]);
+                return false; //signal we need more input!
             }
             let val: i32 = self.inputs.remove(0);
             let dest = self.program[self.pc + 1] as usize;
             self.print_debug(format!("INPUT {} -> {}", val, dest));
             self.program[dest] = val;
             self.pc += 2;
+            return true;
         }
 
         fn output(&mut self) {
