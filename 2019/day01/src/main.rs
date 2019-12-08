@@ -1,46 +1,31 @@
-use std::fs;
-use std::io;
-use std::io::BufRead;
-use std::io::BufReader;
+use common::*;
 use std::iter::Iterator;
 
 fn main() {
-    let lines = file_to_vec("input.txt".to_string()).unwrap();
-    let result_part1 = lines
+    let lines: Vec<i32> = file_to_vec("input.txt".to_string())
+        .unwrap()
         .iter()
         .map(|x| x.parse::<i32>().unwrap())
-        .map(fuel_cost)
-        .fold(0, |acc, x| acc + x);
-    println!("part 1 answer: {}", result_part1);
-    let result_part2 = lines
+        .collect();
+    
+    println!("part 1 answer: {}", lines.clone()
         .iter()
-        .map(|x| x.parse::<i32>().unwrap())
-        .map(recursive_fuel_cost)
-        .fold(0, |acc, x| acc + x);
-    println!("part 2 answer: {}", result_part2);
-}
-
-fn file_to_vec(filename: String) -> io::Result<Vec<String>> {
-    let file_in = fs::File::open(filename)?;
-    let file_reader = BufReader::new(file_in);
-    Ok(file_reader.lines().filter_map(io::Result::ok).collect())
+        .map(|x| fuel_cost(*x))
+        .fold(0, |acc, x| acc + x));
+    println!("part 2 answer: {}", lines.clone()
+        .iter()
+        .map(|x| recursive_fuel_cost(*x))
+        .fold(0, |acc, x| acc + x));
 }
 
 fn fuel_cost(mass: i32) -> i32 {
-    let cost = (mass / 3) - 2;
-
-    return match cost {
-        c if c <= 0 => 0,
-        _ => cost,
-    };
+    (mass / 3) - 2
 }
 
 fn recursive_fuel_cost(mass: i32) -> i32 {
-    let cost = fuel_cost(mass);
-
-    return match cost {
+    return match fuel_cost(mass) {
         c if c <= 0 => 0,
-        _ => cost + recursive_fuel_cost(cost),
+        c => c + recursive_fuel_cost(c),
     };
 }
 
