@@ -7,15 +7,23 @@ fn main() {
         .iter()
         .map(|x| x.parse::<i32>().unwrap())
         .collect();
-    
-    println!("part 1 answer: {}", lines.clone()
-        .iter()
-        .map(|x| fuel_cost(*x))
-        .fold(0, |acc, x| acc + x));
-    println!("part 2 answer: {}", lines.clone()
-        .iter()
-        .map(|x| recursive_fuel_cost(*x))
-        .fold(0, |acc, x| acc + x));
+
+    println!(
+        "part 1 answer: {}",
+        lines
+            .clone()
+            .iter()
+            .map(|x| fuel_cost(*x))
+            .fold(0, |acc, x| acc + x)
+    );
+    println!(
+        "part 2 answer: {}",
+        lines
+            .clone()
+            .iter()
+            .map(|x| recursive_fuel_cost(*x))
+            .fold(0, |acc, x| acc + x)
+    );
 }
 
 fn fuel_cost(mass: i32) -> i32 {
