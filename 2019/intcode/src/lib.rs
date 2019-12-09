@@ -1,16 +1,16 @@
 pub mod intcode {
     pub fn prepare_emulator(program_spec: String, input_spec: String, debug: bool) -> Emulator {
         Emulator::new(
-            common::comma_separated_ints_to_vec(&program_spec),
-            common::comma_separated_ints_to_vec(&input_spec),
+            common::comma_separated_i64_to_vec(&program_spec),
+            common::comma_separated_i64_to_vec(&input_spec),
             debug,
         )
     }
-    
+
     pub fn deconstruct_output(emulator: Emulator) -> (String, String) {
         (
-            common::vec_to_comma_separated_ints(emulator.program),
-            common::vec_to_comma_separated_ints(emulator.outputs)
+            common::vec_to_comma_separated_i64(emulator.program),
+            common::vec_to_comma_separated_i64(emulator.outputs),
         )
     }
 
@@ -23,46 +23,79 @@ pub mod intcode {
         Parameters that an instruction writes to will never be in immediate mode.
     */
     // have get_opcode and is_immediate_parameter outside Emulator for easy testing
-    pub fn get_opcode(instruction: i32) -> i32 {
+    pub fn get_opcode(instruction: i64) -> i64 {
         instruction % 100
     }
 
-    pub fn is_immediate_parameter(instruction: i32, index: usize) -> bool {
+    pub fn decode_parameter(instruction: i64, index: usize) -> Mode {
         match index {
-            1 => ((instruction / 100) % 10) == 1,
-            2 => ((instruction / 1000) % 10) == 1,
+            1 => decode_mode((instruction / 100) % 10),
+            2 => decode_mode((instruction / 1000) % 10),
             //unlikely this'll get hit, since
             //currently all the 3-parameter opcodes write to the 3rd parameter
-            3 => ((instruction / 10000) % 10) == 1,
+            3 => decode_mode((instruction / 10000) % 10),
             _ => panic!("UNEXPECTED PARAMETER '{}'", index),
         }
     }
 
+    pub fn decode_mode(mode: i64) -> Mode {
+        match mode {
+            0 => Mode::Position,
+            1 => Mode::Immediate,
+            2 => Mode::Relative,
+            _ => panic!("INVALID MODE {}", mode),
+        }
+    }
+
+    pub fn add_i64_to_usize(a: i64, b: usize) -> usize {
+        if a == 0 {
+            return b;
+        }
+        match a.is_negative() {
+            true => b.checked_sub(a.abs() as usize).unwrap(),
+            false => b.checked_add(a as usize).unwrap(),
+        }
+    }
+
+    #[derive(Debug, Eq, PartialEq)]
+    pub enum Mode {
+        // 0
+        Position,
+        // 1
+        Immediate,
+        // 2
+        Relative,
+    }
+
     pub struct Emulator {
         pc: usize,
+        relative_base: usize,
         debug: bool,
-        pub program: Vec<i32>,
-        pub inputs: Vec<i32>,
-        pub outputs: Vec<i32>,
-        is_halted: bool
+        pub program: Vec<i64>,
+        pub inputs: Vec<i64>,
+        pub outputs: Vec<i64>,
+        is_halted: bool,
     }
 
     #[derive(Debug)]
     pub enum RunSignal {
         Halt,
         NoInput,
-        Output(i32)
+        Output(i64),
     }
 
     impl Emulator {
-        pub fn new(program: Vec<i32>, inputs: Vec<i32>, debug: bool) -> Emulator {
+        pub fn new(program: Vec<i64>, inputs: Vec<i64>, debug: bool) -> Emulator {
+            let mut memory = program.clone();
+            memory.append(&mut vec![0; 1000]);
             Emulator {
                 pc: 0,
+                relative_base: 0,
                 debug,
-                program,
+                program: memory,
                 inputs,
                 outputs: vec![],
-                is_halted: false
+                is_halted: false,
             }
         }
 
@@ -72,32 +105,42 @@ pub mod intcode {
             }
         }
 
-        fn get_opcode(&self) -> i32 {
+        fn get_opcode(&self) -> i64 {
             get_opcode(self.program[self.pc])
         }
 
-        fn is_immediate_parameter(&self, index: usize) -> bool {
-            is_immediate_parameter(self.program[self.pc], index)
+        fn decode_parameter(&self, index: usize) -> Mode {
+            decode_parameter(self.program[self.pc], index)
         }
 
-        fn parameter(&self, index: usize) -> i32 {
-            match self.is_immediate_parameter(index) {
-                true => self.get_immediate(index),
-                false => self.get_positional(index),
+        fn parameter(&self, index: usize) -> i64 {
+            match self.decode_parameter(index) {
+                Mode::Position => self.get_positional(index),
+                Mode::Immediate => self.get_immediate(index),
+                Mode::Relative => self.get_relative(index),
             }
         }
 
-        fn get_immediate(&self, index: usize) -> i32 {
+        fn get_immediate(&self, index: usize) -> i64 {
             self.print_debug(format!("get_immediate {}", index));
-            
             self.program[self.pc + index]
         }
 
-        fn get_positional(&self, index: usize) -> i32 {
-            let x = self.get_immediate(index) as usize;
-            self.print_debug(format!("get_positional {} -> {}", index, x));
-            
+        fn get_positional(&self, index: usize) -> i64 {
+            let x = self.program[self.pc + index] as usize;
+            self.print_debug(format!("get_positional [{}] -> {}", index, x));
             self.program[x]
+        }
+
+        fn get_relative(&self, index: usize) -> i64 {
+            let x = self.program[self.pc + index];
+            let oldrel = self.relative_base.clone();
+            let relative_index = add_i64_to_usize(x, self.relative_base);
+            self.print_debug(format!(
+                "get_relative [{} + {}] -> {}",
+                oldrel, x, relative_index
+            ));
+            self.program[relative_index]
         }
 
         pub fn run_program(&mut self) -> RunSignal {
@@ -106,7 +149,10 @@ pub mod intcode {
             }
             loop {
                 let opcode = self.get_opcode();
-                //self.print_debug(format!("OPCODE {}", opcode));
+                self.print_debug(format!(
+                    "INSTR {}, OPCODE {}",
+                    self.program[self.pc], opcode
+                ));
                 match opcode {
                     1 => self.add(),
                     2 => self.multiply(),
@@ -114,20 +160,21 @@ pub mod intcode {
                         if !self.input() {
                             return RunSignal::NoInput;
                         }
-                    },
+                    }
                     4 => {
                         self.output();
-                        let last_output = self.outputs[self.outputs.len()-1];
+                        let last_output = self.outputs[self.outputs.len() - 1];
                         return RunSignal::Output(last_output);
-                    },
+                    }
                     5 => self.jump_if_true(),
                     6 => self.jump_if_false(),
                     7 => self.less_than(),
                     8 => self.equals(),
+                    9 => self.adjust_relative_base(),
                     99 => {
                         self.is_halted = true;
                         return RunSignal::Halt; //HALT!
-                    },
+                    }
                     _ => panic!("UNEXPECTED OPCODE '{}'", opcode),
                 }
             }
@@ -157,7 +204,7 @@ pub mod intcode {
             if self.inputs.len() == 0 {
                 return false; //signal we need more input!
             }
-            let val: i32 = self.inputs.remove(0);
+            let val: i64 = self.inputs.remove(0);
             let dest = self.program[self.pc + 1] as usize;
             self.print_debug(format!("INPUT {} -> {}", val, dest));
             self.program[dest] = val;
@@ -225,6 +272,17 @@ pub mod intcode {
             }
             self.pc += 4;
         }
+
+        fn adjust_relative_base(&mut self) {
+            let val1 = self.parameter(1);
+            let oldrel = self.relative_base.clone();
+            self.relative_base = add_i64_to_usize(val1, self.relative_base);
+            self.print_debug(format!(
+                "ADJUST REL {} + {} = {}",
+                oldrel, val1, self.relative_base
+            ));
+            self.pc += 2;
+        }
     }
 }
 
@@ -257,12 +315,42 @@ mod tests {
     }
 
     #[test]
-    fn run_program_with_io_works() {
+    fn run_program_works_6() {
         run_program_case(
             "3,0,4,0,99".to_string(),
             "1".to_string(),
             "1,0,4,0,99".to_string(),
             "1".to_string(),
+        )
+    }
+
+    #[test]
+    fn run_program_works_7() {
+        run_program_case(
+            "109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99".to_string(),
+            "".to_string(),
+            "".to_string(),
+            "109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99".to_string(),
+        )
+    }
+
+    #[test]
+    fn run_program_works_8() {
+        run_program_case(
+            "1102,34915192,34915192,7,4,7,99,0".to_string(),
+            "".to_string(),
+            "".to_string(),
+            "1219070632396864".to_string(),
+        )
+    }
+
+    #[test]
+    fn run_program_works_9() {
+        run_program_case(
+            "104,1125899906842624,99".to_string(),
+            "".to_string(),
+            "".to_string(),
+            "1125899906842624".to_string(),
         )
     }
 
@@ -282,9 +370,15 @@ mod tests {
         expected_output: String,
     ) {
         let mut emulator = prepare_emulator(program_spec, input_spec, true);
-        emulator.run_program();
+        loop {
+            match emulator.run_program() {
+                RunSignal::Halt => break,
+                _ => continue,
+            }
+        }
         let (prog, output) = deconstruct_output(emulator);
-        assert_eq!(expected_program, prog);
+
+        assert!(prog.starts_with(&expected_program));
         assert_eq!(expected_output, output);
     }
 
@@ -299,24 +393,31 @@ mod tests {
 
     #[test]
     fn is_immediate_parameter_works() {
-        assert_eq!(false, is_immediate_parameter(1, 1));
-        assert_eq!(false, is_immediate_parameter(1, 2));
-        assert_eq!(false, is_immediate_parameter(1, 3));
+        assert_eq!(Mode::Position, decode_parameter(1, 1));
+        assert_eq!(Mode::Position, decode_parameter(1, 2));
+        assert_eq!(Mode::Position, decode_parameter(1, 3));
+        assert_eq!(Mode::Position, decode_parameter(2, 1));
+        assert_eq!(Mode::Position, decode_parameter(2, 2));
+        assert_eq!(Mode::Position, decode_parameter(2, 3));
+        assert_eq!(Mode::Position, decode_parameter(10002, 1));
+        assert_eq!(Mode::Position, decode_parameter(10002, 2));
+        assert_eq!(Mode::Immediate, decode_parameter(102, 1));
+        assert_eq!(Mode::Immediate, decode_parameter(1002, 2));
+        assert_eq!(Mode::Immediate, decode_parameter(10002, 3));
+        assert_eq!(Mode::Relative, decode_parameter(202, 1));
+        assert_eq!(Mode::Relative, decode_parameter(2002, 2));
+        assert_eq!(Mode::Relative, decode_parameter(20002, 3));
+        assert_eq!(Mode::Immediate, decode_parameter(11102, 1));
+        assert_eq!(Mode::Immediate, decode_parameter(11102, 2));
+        assert_eq!(Mode::Immediate, decode_parameter(11102, 3));
+        assert_eq!(Mode::Immediate, decode_parameter(1102, 1));
+        assert_eq!(Mode::Immediate, decode_parameter(1102, 2));
+        assert_eq!(Mode::Position, decode_parameter(1102, 3));
+    }
 
-        assert_eq!(true, is_immediate_parameter(102, 1));
-        assert_eq!(false, is_immediate_parameter(102, 2));
-        assert_eq!(false, is_immediate_parameter(102, 3));
-
-        assert_eq!(false, is_immediate_parameter(1002, 1));
-        assert_eq!(true, is_immediate_parameter(1002, 2));
-        assert_eq!(false, is_immediate_parameter(1002, 3));
-
-        assert_eq!(false, is_immediate_parameter(10002, 1));
-        assert_eq!(false, is_immediate_parameter(10002, 2));
-        assert_eq!(true, is_immediate_parameter(10002, 3));
-
-        assert_eq!(true, is_immediate_parameter(11102, 1));
-        assert_eq!(true, is_immediate_parameter(11102, 2));
-        assert_eq!(true, is_immediate_parameter(11102, 3));
+    #[test]
+    fn add_i64_to_usize_works() {
+        assert_eq!(0, add_i64_to_usize(-1, 1));
+        assert_eq!(1, add_i64_to_usize(1, 0));
     }
 }

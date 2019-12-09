@@ -24,7 +24,19 @@ pub fn comma_separated_ints_to_vec(line: &String) -> Vec<i32> {
         .collect()
 }
 
+pub fn comma_separated_i64_to_vec(line: &String) -> Vec<i64> {
+    line.split(",")
+        .filter(|x| !x.is_empty())
+        .map(|x| x.parse::<i64>().unwrap())
+        .collect()
+}
+
 pub fn vec_to_comma_separated_ints(vec: Vec<i32>) -> String {
+    let list: Vec<_> = vec.into_iter().map(|i| i.to_string()).collect();
+    return list.join(",");
+}
+
+pub fn vec_to_comma_separated_i64(vec: Vec<i64>) -> String {
     let list: Vec<_> = vec.into_iter().map(|i| i.to_string()).collect();
     return list.join(",");
 }
