@@ -87,7 +87,7 @@ pub mod intcode {
     impl Emulator {
         pub fn new(program: Vec<i64>, inputs: Vec<i64>, debug: bool) -> Emulator {
             let mut memory = program.clone();
-            memory.append(&mut vec![0; 1000]);
+            memory.append(&mut vec![0; 10000]);
             Emulator {
                 pc: 0,
                 relative_base: 0,
@@ -113,11 +113,19 @@ pub mod intcode {
             decode_parameter(self.program[self.pc], index)
         }
 
-        fn parameter(&self, index: usize) -> i64 {
+        fn get_parameter(&self, index: usize) -> i64 {
             match self.decode_parameter(index) {
                 Mode::Position => self.get_positional(index),
                 Mode::Immediate => self.get_immediate(index),
                 Mode::Relative => self.get_relative(index),
+            }
+        }
+
+        fn set_parameter(&mut self, index: usize, value: i64) {
+            match self.decode_parameter(index) {
+                Mode::Position => self.set_positional(index, value),
+                Mode::Immediate => panic!("IMMEDIATE MODE NOT SUPPORTED FOR WRITING VALUES"),
+                Mode::Relative => self.set_relative(index, value)
             }
         }
 
@@ -143,16 +151,33 @@ pub mod intcode {
             self.program[relative_index]
         }
 
+        fn set_positional(&mut self, index: usize, value: i64) {
+            self.print_debug(format!("set_positional [{}] <- {}", index, value));
+            let x = self.program[self.pc + index] as usize;
+            self.program[x] = value;
+        }
+
+        fn set_relative(&mut self, index: usize, value: i64) {
+            let x = self.program[self.pc + index];
+            let oldrel = self.relative_base.clone();
+            let relative_index = add_i64_to_usize(x, self.relative_base);
+            self.print_debug(format!(
+                "set_relative [{} + {} = {}] <- {}",
+                oldrel, x, relative_index, value
+            ));
+            self.program[relative_index] = value;
+        }
+
         pub fn run_program(&mut self) -> RunSignal {
             if self.is_halted {
                 return RunSignal::Halt;
             }
             loop {
                 let opcode = self.get_opcode();
-                self.print_debug(format!(
-                    "INSTR {}, OPCODE {}",
-                    self.program[self.pc], opcode
-                ));
+                /* self.print_debug(format!(
+                    "OPCODE {}",
+                    opcode
+                )); */
                 match opcode {
                     1 => self.add(),
                     2 => self.multiply(),
@@ -181,22 +206,20 @@ pub mod intcode {
         }
 
         fn add(&mut self) {
-            let val1 = self.parameter(1);
-            let val2 = self.parameter(2);
-            let dest = self.program[self.pc + 3] as usize;
+            let val1 = self.get_parameter(1);
+            let val2 = self.get_parameter(2);
             let res = val1 + val2;
-            self.print_debug(format!("ADD {} + {} = {} -> {}", val1, val2, res, dest));
-            self.program[dest] = res;
+            self.print_debug(format!("ADD {} + {} = {}", val1, val2, res));
+            self.set_parameter(3, res);
             self.pc += 4;
         }
 
         fn multiply(&mut self) {
-            let val1 = self.parameter(1);
-            let val2 = self.parameter(2);
-            let dest = self.program[self.pc + 3] as usize;
+            let val1 = self.get_parameter(1);
+            let val2 = self.get_parameter(2);
             let res = val1 * val2;
-            self.print_debug(format!("MUL {} * {} = {} -> {}", val1, val2, res, dest));
-            self.program[dest] = res;
+            self.print_debug(format!("MUL {} * {} = {}", val1, val2, res));
+            self.set_parameter(3, res);
             self.pc += 4;
         }
 
@@ -205,23 +228,22 @@ pub mod intcode {
                 return false; //signal we need more input!
             }
             let val: i64 = self.inputs.remove(0);
-            let dest = self.program[self.pc + 1] as usize;
-            self.print_debug(format!("INPUT {} -> {}", val, dest));
-            self.program[dest] = val;
+            self.print_debug(format!("INPUT {}", val));
+            self.set_parameter(1, val);
             self.pc += 2;
             return true;
         }
 
         fn output(&mut self) {
-            let val = self.parameter(1);
+            let val = self.get_parameter(1);
             self.print_debug(format!("OUTPUT {}", val));
             self.outputs.push(val);
             self.pc += 2;
         }
 
         fn jump_if_true(&mut self) {
-            let val1 = self.parameter(1);
-            let val2 = self.parameter(2);
+            let val1 = self.get_parameter(1);
+            let val2 = self.get_parameter(2);
             self.print_debug(format!("JIT {} != 0 ? jump to {}", val1, val2));
             if val1 != 0 {
                 self.pc = val2 as usize;
@@ -231,8 +253,8 @@ pub mod intcode {
         }
 
         fn jump_if_false(&mut self) {
-            let val1 = self.parameter(1);
-            let val2 = self.parameter(2);
+            let val1 = self.get_parameter(1);
+            let val2 = self.get_parameter(2);
             self.print_debug(format!("JIF {} == 0 ? jump to {}", val1, val2));
             if val1 == 0 {
                 self.pc = val2 as usize;
@@ -242,39 +264,37 @@ pub mod intcode {
         }
 
         fn less_than(&mut self) {
-            let val1 = self.parameter(1);
-            let val2 = self.parameter(2);
-            let dest = self.program[self.pc + 3] as usize;
+            let val1 = self.get_parameter(1);
+            let val2 = self.get_parameter(2);
             self.print_debug(format!(
-                "LT {} < {} ? 1 -> {} : 0 -> {}",
-                val1, val2, dest, dest
+                "LT {} < {} ?",
+                val1, val2
             ));
             if val1 < val2 {
-                self.program[dest] = 1;
+                self.set_parameter(3, 1);
             } else {
-                self.program[dest] = 0;
+                self.set_parameter(3, 0);
             }
             self.pc += 4;
         }
 
         fn equals(&mut self) {
-            let val1 = self.parameter(1);
-            let val2 = self.parameter(2);
-            let dest = self.program[self.pc + 3] as usize;
+            let val1 = self.get_parameter(1);
+            let val2 = self.get_parameter(2);
             self.print_debug(format!(
-                "EQ {} == {} ? 1 -> {} : 0 -> {}",
-                val1, val2, dest, dest
+                "EQ {} == {}",
+                val1, val2
             ));
             if val1 == val2 {
-                self.program[dest] = 1;
+                self.set_parameter(3, 1);
             } else {
-                self.program[dest] = 0;
+                self.set_parameter(3, 0);
             }
             self.pc += 4;
         }
 
         fn adjust_relative_base(&mut self) {
-            let val1 = self.parameter(1);
+            let val1 = self.get_parameter(1);
             let oldrel = self.relative_base.clone();
             self.relative_base = add_i64_to_usize(val1, self.relative_base);
             self.print_debug(format!(
@@ -392,7 +412,7 @@ mod tests {
     }
 
     #[test]
-    fn is_immediate_parameter_works() {
+    fn decode_parameter_works() {
         assert_eq!(Mode::Position, decode_parameter(1, 1));
         assert_eq!(Mode::Position, decode_parameter(1, 2));
         assert_eq!(Mode::Position, decode_parameter(1, 3));
