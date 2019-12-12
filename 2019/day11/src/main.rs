@@ -43,7 +43,7 @@ enum NextAction {
 
 fn run_emulator(
     program_spec: String,
-    starting_colour: Colour,    
+    starting_colour: Colour,
     debug: bool,
 ) -> HashMap<(i32, i32), Colour> {
     let mut canvas: HashMap<(i32, i32), Colour> = HashMap::new();
@@ -124,9 +124,9 @@ fn print_canvas(canvas: &HashMap<(i32, i32), Colour>) {
             match &canvas.get(&(x, y)) {
                 Some(c) => match c {
                     Colour::White => print!("#"),
-                    _ => print!(" ")
+                    _ => print!(" "),
                 },
-                None => print!(" ")
+                None => print!(" "),
             }
         }
         println!("");
